@@ -15,7 +15,9 @@ class ChatViewModel: ObservableObject {
             lh.date < rh.date
         })
     }
+    
     @Published var isWaitingForResponce: Bool = false
+    @Published var shouldTriggerTyping: Bool = false
     
     private var pendingRequestTask: Task<Void, Never>?
 	private var dialoge: Dialoge?
@@ -110,6 +112,7 @@ class ChatViewModel: ObservableObject {
 					let dialogeLine = self.container.services.dataBase
 						.makeDialogeLine(chatLine: lastMessange)
                     addDialogeLine(dialogeLine)
+                    shouldTriggerTyping = true
                 }
                 
                 Haptic.impact(.light)

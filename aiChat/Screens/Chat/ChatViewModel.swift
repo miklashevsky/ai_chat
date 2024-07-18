@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 @MainActor
 class ChatViewModel: ObservableObject {
@@ -10,14 +9,18 @@ class ChatViewModel: ObservableObject {
     let contextMenuElements: [ContextAction] = [.copy, .select, .read, .divider, .share, .divider, .resend, .addToBookmark]
     
     var messages: [DialogeLine] {
-        dialoge?.messages.sorted(by: { lh, rh in
+		guard let lines = dialoge?.dialogeLine?.array as? [DialogeLine] else { return [] }
+		
+		return lines.sorted(by: { lh, rh in
             lh.date < rh.date
-        }) ?? []
+        })
     }
+    
     @Published var isWaitingForResponce: Bool = false
+    @Published var shouldTriggerTyping: Bool = false
     
     private var pendingRequestTask: Task<Void, Never>?
-    private var dialoge: Dialoge?
+	private var dialoge: Dialoge?
     
     @objc dynamic var selectedDialogeId: String? {
         get { return UserDefaults.standard.string(forKey: UserDefaultsKey.selectedDialogeId) }
@@ -49,9 +52,9 @@ class ChatViewModel: ObservableObject {
     func sendMessage(text: String) {
         isWaitingForResponce = true
         
-        addDialogeLine(.init(text: text, author: .user))
-        // using only last 4 elements to decrease token load
-        let messagesForRequest = Array(messages.suffix(4))
+		let dialogeLine = container.services.dataBase.makeDialogeLine(text: text, author: .user)
+        addDialogeLine(dialogeLine)
+        let messagesForRequest = Array(messages.suffix(4)) // using only last 4 elements to decrease token load
         
         let expectedChats: [ChatLine] = messagesForRequest.map { $0.toChatLine() }
 
@@ -76,31 +79,27 @@ class ChatViewModel: ObservableObject {
         fetchData()
     }
     
-    private func fetchDialogesForExisingId(dialogeId: String) -> Dialoge? {
-        let descriptor = FetchDescriptor<Dialoge>(predicate: #Predicate{ $0.id == dialogeId },
-                                                  sortBy: [SortDescriptor(\.date)])
-        
-        if let dialoges = try? container.services.dbModel.mainContext.fetch(descriptor),
-           let dialoge = dialoges.first {
-            return dialoge
-        }
-        
-        return nil
-    }
+	private func fetchDialogesForExisingId(dialogeId: String) -> Dialoge? {
+		if let id = UUID(uuidString: dialogeId) {
+			return container.services.dataBase.fetchDialoge(id: id)
+		}
+		return nil
+	}
     
     private func makeEmptyDialoge() -> Dialoge {
-        let dialoge = Dialoge(title: "", messages: [])
-        self.dialoge = dialoge
-        container.services.dbModel.mainContext.insert(dialoge)
-        selectedDialogeId = dialoge.id
-        return dialoge
+		let dialoge = container.services.dataBase.makeDialoge(title: "")
+		self.dialoge = dialoge
+		container.services.dataBase.addDialoge(dialoge)
+		selectedDialogeId = dialoge.id.uuidString
+		return dialoge
     }
     
     private func addDialogeLine(_ message: DialogeLine) {
         let dialoge = self.dialoge ?? makeEmptyDialoge()
-        dialoge.messages.append(message)
         dialoge.date = .now
         dialoge.title = message.text
+		
+		container.services.dataBase.addDialogeLine(message, inDialoge: dialoge)
     }
     
     private func requestTask(query: ChatQuery) -> Task<Void, Never> {
@@ -110,7 +109,10 @@ class ChatViewModel: ObservableObject {
                 guard !Task.isCancelled else { throw NSError() }
                 
                 if let lastMessange = chats.messages.last {
-                    addDialogeLine(lastMessange.toDialogeLine())
+					let dialogeLine = self.container.services.dataBase
+						.makeDialogeLine(chatLine: lastMessange)
+                    addDialogeLine(dialogeLine)
+                    shouldTriggerTyping = true
                 }
                 
                 Haptic.impact(.light)

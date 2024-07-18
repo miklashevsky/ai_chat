@@ -1,18 +1,16 @@
-import SwiftData
+import Foundation
 
 extension DIContainer {
     struct Services {
         let networkService: Networkable
-        let dbModel: ModelContainer
+		let dataBase = DataBase()
         
-        init(networkService: Networkable, dbModel: ModelContainer) {
+        init(networkService: Networkable) {
             self.networkService = networkService
-            self.dbModel = dbModel
         }
         
         static var stub: Self {
-            .init(networkService: NetworkStub(),
-                  dbModel: try! ModelContainer(for: DialogeLine.self, Dialoge.self))
+            .init(networkService: NetworkStub())
         }
     }
 }

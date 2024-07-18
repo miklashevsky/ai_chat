@@ -12,6 +12,8 @@ struct ChatView: View {
     @FocusState var isFocused: Bool
     @State private var historyDetent = PresentationDetent.medium
     
+    @State var viewSize: CGSize = .zero
+    
     init(model: ChatViewModel) {
         _model = StateObject(wrappedValue: model)
     }
@@ -19,44 +21,70 @@ struct ChatView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             ScrollViewReader { reader in
-                LazyVStack(spacing: 8) {
+                VStack(spacing: 8) {
                     ForEach(model.messages) { message in
-                        ChatMessage(text: message.text,
-                                    isUser: message.author == .user,
-                                    elements: model.contextMenuElements,
-                                    onMenuAction: { model.contextMenuAction($0) })
+                        let shouldTrigger = shouldTriggerTyping(id: message.id)
+                        return ChatMessage(text: message.text,
+                                           isUser: message.author == .user,
+                                           shouldTriggerTyping: shouldTrigger,
+                                           elements: model.contextMenuElements,
+                                           onTypingUpdate: {
+                            if model.shouldTriggerTyping {
+                                reader.scrollTo(message.id)
+                            }
+                        },
+                                           onTypingCompleted: {
+                            model.shouldTriggerTyping = false
+                        },
+                                           onMenuAction: { model.contextMenuAction($0) })
+                        .onDisappear(perform: {
+                            if shouldTrigger {
+                                model.shouldTriggerTyping = false
+                            }
+                        })
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     if model.isWaitingForResponce {
                         LoadingIndicator()
                             .id(-1)
                     }
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, 16)
                 .task {
                     guard let lastMessage = model.messages.last else { return }
                     reader.scrollTo(lastMessage.id)
                 }
-                .onChange(of: model.messages, {
+                .onChange(of: model.messages, perform: { _ in
                     guard let lastMessage = model.messages.last else { return }
                     withAnimation {
                         reader.scrollTo(lastMessage.id)
                     }
                 })
-                .onChange(of: model.isWaitingForResponce, { oldValue, newValue in
+                .onChange(of: model.isWaitingForResponce, perform: { newValue in
                     if newValue {
                         withAnimation {
                             reader.scrollTo(-1)
                         }
                     }
                 })
-                .onChange(of: isFocused) { oldValue, newValue in
+                .onChange(of: isFocused, perform: { newValue in
                     guard newValue,
                           let lastMessage = model.messages.last else { return }
-                    withAnimation {
-                        reader.scrollTo(lastMessage.id)
+                    Task {
+                        try? await Task.sleep(nanoseconds: 100_000_000)
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            reader.scrollTo(lastMessage.id)
+                        }
                     }
-                }
+                })
+                .animation(.default, value: model.messages)
+                
             }
+            .simultaneousGesture(DragGesture()
+                .onChanged({ _ in
+                    model.shouldTriggerTyping = false
+                }))
         }
         .overlay {
             if model.messages.isEmpty {
@@ -134,8 +162,18 @@ struct ChatView: View {
                     model.fetchData()
                 }
             })
-                .presentationDetents([.medium, .large], selection: $historyDetent)
+            .presentationDetents([.medium, .large], selection: $historyDetent)
         })
+    }
+    
+    func shouldTriggerTyping(id: UUID) -> Bool {
+        guard model.shouldTriggerTyping else { return false }
+        
+        if let message = model.messages.last,
+           message.author == .system {
+            return message.id == id
+        }
+        return false
     }
 }
 

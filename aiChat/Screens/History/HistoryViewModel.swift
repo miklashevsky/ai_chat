@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 @MainActor
 class HistoryViewModel: ObservableObject {
@@ -16,6 +15,7 @@ class HistoryViewModel: ObservableObject {
         let dateFormatter = DateFormatter()
         dateFormatter.timeStyle = .none
         dateFormatter.dateStyle = .medium
+        dateFormatter.locale = Locale(identifier: "en_GB")
         dateFormatter.doesRelativeDateFormatting = true
         return dateFormatter
     }()
@@ -30,27 +30,28 @@ class HistoryViewModel: ObservableObject {
     }
     
     func deleteItems(at offsets: IndexSet, in section: HistorySection) {
+		var ids: [UUID] = []
         offsets.forEach { offset in
             let dialogeId = section.items[offset].dialogeId
+			if let dialogeUUID = UUID(uuidString: dialogeId) {
+				ids.append(dialogeUUID)
+			}
+			
             if let sectionIndex = sections.firstIndex(of: section) {
                 sections[sectionIndex].items.remove(at: offset)
                 if sections[sectionIndex].items.isEmpty {
                     sections.remove(at: sectionIndex)
                 }
             }
-            
-            try? container.services.dbModel.mainContext.delete(model: Dialoge.self,
-                                                               where: #Predicate { $0.id == dialogeId })
         }
-        try? container.services.dbModel.mainContext.save()
+		
+		container.services.dataBase.deleteDialoges(ids: ids)
     }
     
-    private func fetchData() {
-        let descriptor = FetchDescriptor<Dialoge>(sortBy: [SortDescriptor(\.date)])
-        if let dialoges = try? container.services.dbModel.mainContext.fetch(descriptor) {
-            splitToSections(dialoges: dialoges)
-        }
-    }
+	private func fetchData() {
+		let dialoges = container.services.dataBase.fetchDialoges()
+		splitToSections(dialoges: dialoges)
+	}
     
     private func splitToSections(dialoges: [Dialoge]) {
         let groupedByDate: [Date: [Dialoge]] = Dictionary(grouping: dialoges,
@@ -62,7 +63,7 @@ class HistoryViewModel: ObservableObject {
                     .init(id: UUID().uuidString,
                           title: dateFormatter.string(from: key),
                           items: value.map {
-                        .init(title: $0.title, dialogeId: $0.id)
+						.init(title: $0.title, dialogeId: $0.id.uuidString)
                     })
             }
     }

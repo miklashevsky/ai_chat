@@ -36,26 +36,26 @@ struct ChatView: View {
                     guard let lastMessage = model.messages.last else { return }
                     reader.scrollTo(lastMessage.id)
                 }
-                .onChange(of: model.messages, {
+				.onChange(of: model.messages, perform: { _ in
                     guard let lastMessage = model.messages.last else { return }
                     withAnimation {
                         reader.scrollTo(lastMessage.id)
                     }
                 })
-                .onChange(of: model.isWaitingForResponce, { oldValue, newValue in
+                .onChange(of: model.isWaitingForResponce, perform: { newValue in
                     if newValue {
                         withAnimation {
                             reader.scrollTo(-1)
                         }
                     }
                 })
-                .onChange(of: isFocused) { oldValue, newValue in
+                .onChange(of: isFocused, perform: { newValue in
                     guard newValue,
                           let lastMessage = model.messages.last else { return }
                     withAnimation {
                         reader.scrollTo(lastMessage.id)
                     }
-                }
+                })
             }
         }
         .overlay {

@@ -1,33 +1,45 @@
 import Foundation
-import SwiftData
+import CoreData
 
-@Model
-class DialogeLine {
-    @Attribute(.unique) let id = UUID().uuidString
-    let date: Date
-    let text: String
-    let author: Author
+@objc(DialogeLine)
+public class DialogeLine: NSManagedObject {
+}
+
+extension DialogeLine {
     
-    enum Author: Codable {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<DialogeLine> {
+        return NSFetchRequest<DialogeLine>(entityName: "DialogeLine")
+    }
+    
+    @NSManaged public var date: Date
+    @NSManaged public var id: UUID
+    @NSManaged public var authorEnum: Int16
+    @NSManaged public var text: String
+    @NSManaged public var dialoge: Dialoge?
+    
+}
+
+extension DialogeLine : Identifiable {
+    
+}
+
+extension DialogeLine {
+    @objc public enum Author: Int16 {
         case user, system
     }
     
-    init(date: Date = Date(), text: String, author: Author) {
-        self.date = date
-        self.text = text
-        self.author = author
+    public var author: Author {
+        get { Author(rawValue: authorEnum) ?? .system }
+        set { authorEnum = newValue.rawValue }
     }
 }
 
 extension DialogeLine {
-    func toChatLine() -> ChatLine {
-        let role: ChatLine.Role
-        switch author {
-        case .system:
-            role = .system
-        case .user:
-            role = .user
-        }
-        return .init(role: role, text: text)
+    convenience init(context: NSManagedObjectContext, text: String, author: Author) {
+        self.init(context: context)
+        self.date = Date()
+        self.id = UUID()
+        self.text = text
+        self.author = author
     }
 }

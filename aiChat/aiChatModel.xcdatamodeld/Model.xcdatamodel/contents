@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Dialoge" representedClassName="Dialoge" syncable="YES">
+        <attribute name="customTitle" optional="YES" attributeType="String"/>
+        <attribute name="date" attributeType="Date" defaultDateTimeInterval="741642000" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <relationship name="dialogeLine" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="DialogeLine" inverseName="dialoge" inverseEntity="DialogeLine"/>
+    </entity>
+    <entity name="DialogeLine" representedClassName="DialogeLine" syncable="YES">
+        <attribute name="authorEnum" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="text" attributeType="String"/>
+        <relationship name="dialoge" optional="YES" maxCount="1" deletionRule="Nullify" ordered="YES" destinationEntity="Dialoge" inverseName="dialogeLine" inverseEntity="Dialoge"/>
+    </entity>
+</model>

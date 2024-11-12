@@ -48,7 +48,7 @@ struct PlusView: View {
             .onAppear(perform: {
                 plusMenuListPresented = true
             })
-            .onChange(of: plusMenuListPresented, { oldValue, newValue in
+			.onChange(of: plusMenuListPresented, perform: { newValue in
                 isPlusPresented = newValue
             })
             .overlay(alignment: .bottomLeading) {

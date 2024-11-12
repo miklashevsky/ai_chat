@@ -18,16 +18,3 @@ struct ChatLine: Codable, Equatable {
         case user
     }
 }
-
-extension ChatLine {
-    func toDialogeLine() -> DialogeLine {
-        let author: DialogeLine.Author
-        switch role {
-        case .system:
-            author = .system
-        case .user:
-            author = .user
-        }
-        return .init(text: text ?? "", author: author)
-    }
-}
